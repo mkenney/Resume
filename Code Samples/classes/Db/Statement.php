@@ -109,7 +109,7 @@ class Bdlm_Db_Statement extends Bdlm_Object {
 		$query = $this->get("query");
 
 		$_query_data = $this->get("data");
-		foreach ($this->get("data") as $k => $v) {
+		while (list($k, $v) = each($_query_data)) {
 			$quote_char = "";
 
 			//
@@ -117,7 +117,7 @@ class Bdlm_Db_Statement extends Bdlm_Object {
 			// Always quote the values
 			//
 			if (is_array($v)) {
-				foreach ($v as $_tmp_k => $_tmp_v) {
+				while (list($_tmp_k, $_tmp_v) = each($v)) {
 					$v[$_tmp_k] = $this->db()->connection()->escape_string($_tmp_v);
 				}
 				$v = "'".implode("', '", $v)."'";
