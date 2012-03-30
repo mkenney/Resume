@@ -21,7 +21,6 @@ on-site servers.
 • Hiring and cross-training interdepartmental team members as well as company-wide training on
 existing and new products and best practices.
 
-• Advisor to the Executive Team on new technology implementation and current technology
-improvement to handle company growth including infrastructure, data management and security
-policies.
+• Advisor to Executive Teams on new technology implementation and current technology improvement
+to handle company growth including infrastructure, data management and security policies.
 
