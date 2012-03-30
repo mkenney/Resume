@@ -26,7 +26,7 @@ interface Bdlm_Db_Interface {
 	 * @param string $server The server hostname
 	 * @param string $user The database user name
 	 * @param string $password The database user's password
-	 * @@param string $adapter Not used, placeholder for future PDO
+	 * @param string $adapter Not used, placeholder for future PDO
 	 * @return Bdlm_Db
 	 */
 	public function __construct($database = null, $server = null, $user = null, $password = null, $adapter = null);
@@ -47,8 +47,9 @@ interface Bdlm_Db_Interface {
 	public function connect($force_reconnect = false);
 
 	/**
-	 * Get/set the current Mysqli instance
-	 * Always returns a Mysqli instance, even if no connection has been established
+	 * Get/set the current Db adapter instance
+	 * Always returns an adapter instance, even if no connection has been established
+	 * @todo This should not be MySQLi specific, write a wrapper class that can be used for other apapters
 	 * @param Mysqli $mysqli
 	 * @return Mysqli
 	 */
@@ -56,7 +57,7 @@ interface Bdlm_Db_Interface {
 
 	/**
 	 * Semantic opposite of connect()
-	 * This is an alias to Dblm_Db::close()
+	 * This is an alias to close() above
 	 * @return bool MySQLi::close()
 	 */
 	public function disconnect();
@@ -66,6 +67,12 @@ interface Bdlm_Db_Interface {
 	 * @return string
 	 */
 	public function error();
+
+	/**
+	 * Return the error code for the most recent function call
+	 * @return int
+	 */
+	public function errno();
 
 	/**
 	 * Get the current conneciton information.

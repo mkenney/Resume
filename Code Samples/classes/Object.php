@@ -6,6 +6,7 @@
  * @author Michael Kenney <mkenney@webbedlam.com>
  * @package Bedlam_CORE
  * @subpackage Object
+ * @version $Id$
  */
 
 /**
@@ -26,10 +27,102 @@
  * @author Michael Kenney <mkenney@webbedlam.com>
  * @package Bedlam_CORE
  * @subpackage Object
- * @version 1.7
- * @todo finish testing validation methods
+ * @version 1.74
+ * @todo finish testing validation methods and write unit tests
  */
 class Bdlm_Object implements Bdlm_Object_Interface {
+
+	/**
+	 * Array type error code
+	 */
+	const INVALID_TYPE_ARRAY     = 1;
+	/**
+	 * Boolean type error code
+	 */
+	const INVALID_TYPE_BOOLEAN   = 2;
+	/**
+	 * Date type error code
+	 */
+	const INVALID_TYPE_DATE      = 3;
+	/**
+	 * Double / Float type error code
+	 */
+	const INVALID_TYPE_DOUBLE    = 4;
+	/**
+	 * File type error code
+	 */
+	const INVALID_TYPE_FILE      = 5;
+	/**
+	 * Int / Integer / Long / Real type error code
+	 */
+	const INVALID_TYPE_INTEGER   = 7;
+	/**
+	 * Multi-byte string type error code
+	 */
+	const INVALID_TYPE_MBSTRING  = 9;
+	/**
+	 * Object type error code
+	 */
+	const INVALID_TYPE_OBJECT    = 10;
+	/**
+	 * Resource type error code
+	 */
+	const INVALID_TYPE_RESOURCE  = 12;
+	/**
+	 * Scalar type error code
+	 */
+	const INVALID_TYPE_SCALAR    = 13;
+	/**
+	 * String type error code
+	 */
+	const INVALID_TYPE_STRING    = 14;
+	/**
+	 * Class type error code
+	 */
+	const INVALID_TYPE_CLASS     = 15;
+	/**
+	 * Unknown type error code
+	 */
+	const INVALID_TYPE_UNKNOWN   = 16;
+	/**
+	 * Bounded data (max() / min()) error code
+	 */
+	const INVALID_DATA_SIZE      = 17;
+
+	/**
+	 * Local data storage
+	 * @var array $_data
+	 */
+	protected $_data = array();
+
+	/**
+	 * The read vs read/write mode.
+	 * If true, set/add/save methods should fail
+	 */
+	protected $_is_static = false;
+
+	/**
+	 * Optional, max length/value for this data
+	 * @var int $_max
+	 */
+	protected $_max = null;
+
+	/**
+	 * Optional, min length/value for this data
+	 * @var int $_min
+	 */
+	protected $_min = null;
+
+	/**
+	 * The object mode.  May be one of:
+	 *  - 'list'
+	 *	- 'fixed'
+	 *  - 'singleton'
+	 * Singleton mode should act as an array with one and only one element.
+	 * List mode should act as an array with fixed keys.
+	 * @var string $_mode
+	 */
+	protected $_mode = 'list';
 
 	/**
 	 * Optional, name of this data
@@ -44,50 +137,17 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 	protected $_type = null;
 
 	/**
-	 * Optional, min length/value for this data
-	 * @var int $_min
-	 */
-	protected $_min = null;
-
-	/**
-	 * Optional, max length/value for this data
-	 * @var int $_max
-	 */
-	protected $_max = null;
-
-	/**
-	 * The object mode.  May be one of:
-	 *  - 'list'
-	 *  - 'singleton'
-	 * Singleton mode should act as an array with one and only one element.
-	 * @var string $_mode
-	 */
-	protected $_mode = 'list';
-
-	/**
-	 * The read vs read/write mode.
-	 * If true, set/add/save methods should fail
-	 */
-	protected $_static = false;
-
-	/**
-	 * Local data storage
-	 * @var array $_data
-	 */
-	protected $_data = array();
-
-	/**
 	 * Initialize and populate data, if any.
 	 * If data is an array, it is stored as-is, otherwise it's typed as an array first.
 	 * @param mixed $data The initial data to store in the new object
-	 * @return void
+	 * @return Bdlm_Object
 	 */
 	public function __construct($data = null) {
 		if (!is_null($data)) {
-			if (!is_array($data)) {
-				$data = (array) $data;
-			}
-			$this->setData($data);
+			$this->setData((array) $data);
+		}
+		if (defined('DEBUG') && true === DEBUG) {
+			Bdlm_Object::stats($this);
 		}
 	}
 
@@ -100,9 +160,12 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 	 *
 	 * @param string $var The name of the value
 	 * @param mixed $val The value to store
-	 * @return bool
+	 * @return Bdlm_Object
 	 */
 	public function add($var, $val) {
+
+		// throws Bdlm_Exception if data is not of type $this->type()
+		$this->validateData($val);
 
 		if ($this->isStatic()) {
 			throw new Bdlm_Exception("Static objects cannot be modified.");
@@ -115,6 +178,11 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 			&& !$this->has($var)
 		) {
 			$this->reset();
+		} elseif (
+			'fixed' === $this->mode()
+			&& !$this->has($var)
+		) {
+			throw new Bdlm_Exception("This is a fixed list and the specified key ('{$var}') does not exist.");
 		}
 
 		//
@@ -136,7 +204,7 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 	 * Delete a locally stored value
 	 *
 	 * @param string $var The variable name
-	 * @return void
+	 * @return Bdlm_Object
 	 */
 	public function delete($var) {
 
@@ -145,10 +213,11 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 		}
 
 		$var = (string) $var;
-		if ($this->has($var)) {
-			unset ($this->_data[$var]);
+		if (!$this->has($var)) {
+			throw new Bdlm_Exception("The specified value '{$var}' does not exist.");
 		}
 
+		unset ($this->_data[$var]);
 		return $this;
 	}
 
@@ -182,7 +251,7 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 	 * @return bool True if set, else false
 	 */
 	public function has($var) {
-		return isset($this->_data[(string) $var]);
+		return array_key_exists((string) $var, $this->_data);
 	}
 
 	/**
@@ -216,61 +285,59 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 	/**
 	 * Set/get read-only flag for this object
 	 * If true (static) this object becomes read-only
-	 * If setting the value it returns $this to chain calls
 	 * @param bool $static
-	 * @return bool|Bdlm_Object
+	 * @return bool
 	 */
-	public function isStatic($static = null) {
-		$ret_val = false;
-		if (is_null($static)) {
-			$ret_val = $this->_static;
-		} else {
-			$this->_static = (bool) $static;
-			$ret_val = $this;
+	public function isStatic($is_static = null) {
+		if (!is_null($is_static)) {
+			$this->_is_static = (bool) $is_static;
 		}
-		return $ret_val;
+		return $this->_is_static;
+	}
+
+	/**
+	 * Bdlm_Object_Interface implementation of the load method
+	 * load() should always return the current instance or false on failure.
+	 * Exceptions are also allowed
+	 * @return false|Bdlm_Object
+	 * @throws Bdlm_Exception
+	 */
+	public function load() {
+		return $this;
 	}
 
 	/**
 	 * max get/set wrapper
 	 * If setting the value it returns $this to chain calls
 	 * @param int $max
-	 * @return int|Bdlm_Object
+	 * @return int
 	 * @throws Bdlm_Exception If $max is smaller than $min
 	 */
 	public function max($max = null) {
-		$ret_val = null;
-		if (is_null($max)) {
-			$ret_val = $this->_max;
-		} else {
+		if (!is_null($max)) {
 			if (!$this->isValidMax($max)) {
 				throw new Bdlm_Exception("Invalid \$max value ($max).  Must be numeric and greater than \$this->min().");
 			}
-			$this->_max = (int) $max;
-			$ret_val = $this;
+			$this->_max = (float) $max;
 		}
-		return $ret_val;
+		return $this->_max;
 	}
 
 	/**
 	 * min get/set wrapper
 	 * If setting the value it returns $this to chain calls
 	 * @param int $min
-	 * @return int|Bdlm_Object
+	 * @return int
 	 * @throws Bdlm_Exception If $min is greater than $max
 	 */
 	public function min($min = null) {
-		$ret_val = null;
-		if (is_null($min)) {
-			$ret_val = $this->_min;
-		} else {
+		if (!is_null($min)) {
 			if (!$this->isValidMin($min)) {
 				throw new Bdlm_Exception("Invalid \$min value ($min).  Must be numeric and smaller than \$this->max().");
 			}
-			$this->_min = (int) $min;
-			$ret_val = $this;
+			$this->_min = (float) $min;
 		}
-		return $ret_val;
+		return $this->_min;
 	}
 
 	/**
@@ -302,17 +369,13 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 	 * @throws Bdlm_Exception
 	 */
 	public function name($name = null) {
-		$ret_val = null;
-		if (is_null($name)) {
-			$ret_val = $this->_name;
-		} else {
+		if (!is_null($name)) {
 			if (!$this->isValidName($name)) {
-				throw new Bdlm_Exception("$name is not a valid name");
+				throw new Bdlm_Exception("'$name' is not a valid name");
 			}
-			$this->_name = $name;
-			$ret_val = $this;
+			$this->_name = (string) $name;
 		}
-		return $ret_val;
+		return $this->_name;
 	}
 
 	/**
@@ -336,6 +399,9 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 	 */
 	public function set($var, $val) {
 
+		// throws Bdlm_Exception if data is not of type $this->type()
+		$this->validateData($val);
+
 		if ($this->isStatic()) {
 			throw new Bdlm_Exception("Static objects cannot be modified.");
 		}
@@ -345,6 +411,12 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 		//
 		if ('singleton' === $this->mode()) {
 			$this->reset();
+
+		} elseif (
+			'fixed' === $this->mode()
+			&& !$this->has($var)
+		) {
+			throw new Bdlm_Exception("This is a fixed list and the specified key ('{$var}') does not exist.");
 		}
 
 		$var = (string) $var;
@@ -358,9 +430,13 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 	 * Set/replace the entire $_data array
 	 * @param array $data
 	 * @return bool
-	 * @throws Bdlm_Exception In 'singleton' mode if there is more than one item
+	 * @throws Bdlm_Exception In 'static' mode or in 'singleton' mode if there is more than one item
 	 */
 	public function setData($data) {
+		if ($this->isStatic()) {
+			throw new Bdlm_Exception("Static objects cannot be modified.");
+		}
+
 		if (!is_array($data)) {
 			$data = (array) $data;
 		}
@@ -370,18 +446,29 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 			&& count($data) > 1
 		) {
 			throw new Bdlm_Exception('Too much data for \'singleton\' mode ('.count($data).' elements given)');
+		} elseif (
+			'fixed' === $this->mode()
+			&& count(array_diff(array_keys($this->getData(), array_keys($data)))) > 0
+		) {
+			foreach ($this->getData() as $key => $value) {
+				if (!array_key_exists($key, $data)) {
+					throw new Bdlm_Exception("This is a fixed list and an existing key ('{$var}') is not present in the new list.");
+				}
+			}
+			foreach ($data as $key => $value) {
+				if (!array_key_exists($key, $this->getData())) {
+					throw new Bdlm_Exception("This is a fixed list and a specified key ('{$var}') does not exist.");
+				}
+			}
+
+		}
+		foreach ($data as $val) {
+			// throws Bdlm_Exception if data is not of type $this->type()
+			$this->validateData($val);
 		}
 		$this->_data = $data;
 
 		return $this;
-	}
-
-	/**
-	 * Alias the magic
-	 * @return string
-	 */
-	public function toString() {
-		return $this->__toString();
 	}
 
 	/**
@@ -417,8 +504,26 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 	}
 
 	/**
+	 * Convert the data array to a tab-delimited text
+	 * @return string
+	 */
+	public function toString() {
+		$ret_val = 'File: '.__FILE__."\nClass: ".__CLASS__."\nMethod: ".__METHOD__."()\nLine: ".__LINE__."\nMessage: Not Yet Implemented.\n\nCurrent Data:\n";
+
+		// Use foreach instead of while/list because only foreach() recognizes Iterator implementations
+		foreach ($this as $k => $v) {
+			var_dump($k);
+			var_dump($v);
+			echo "\n\n";
+			$ret_val .= "\t$k:\t$v\n";
+		}
+		return $ret_val;
+	}
+
+	/**
 	 * mmmm.... recursion.... tasty
 	 * @return string XML
+	 * @todo Add doctype and sanitize $k and $v.
 	 */
 	public function toXml($array = null) {
 		$xml = '';
@@ -451,16 +556,19 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 	 * @throws Bdlm_Exception
 	 */
 	public function type($type = null) {
-		if (is_null($type)) {
-			$ret_val = $this->_type;
-		} else {
-			if (!$this->isValidType($type)) {
+		if (!is_null($type)) {
+			if ('' === trim($type)) {
+				throw new Bdlm_Exception("'type' must be a string and must not be empty");
+			} elseif (!$this->isValidType($type)) {
 				throw new Bdlm_Exception("Invalid type '$type'");
 			}
 			$this->_type = $type;
-			$ret_val = $this;
+			foreach ($this->getData() as $val) {
+				// throws Bdlm_Exception if data is not of type $this->type()
+				$this->validateData($val);
+			}
 		}
-		return $ret_val;
+		return $this->_type;
 	}
 
 #######################################################################################
@@ -468,127 +576,17 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 #######################################################################################
 
 	/**
-	 * Validate data aginst this field's _type, _max_length and _min_length settings.
-	 * @param mixed $data
-	 * @return bool True if the data meets the field requirements.
-	 * @throws Bdlm_Exception If validation fails
-	 */
-	public function isValidData($data) {
-		switch ($this->_type) {
-			case 'string':
-				if (!is_string($data)) {throw new Bdlm_Exception('Invalid data type \''.gettype($data).'\', expecting \'string\'.');}
-				if (strlen($data) < $this->_min || strlen($data) > $this->_max) {
-					throw new Bdlm_Exception("Data (".strlen($data)." characters) out of range ($this->_min to $this->_max characters)");
-				}
-			break;
-
-			case 'mbstring':
-				throw new Bdlm_Exception("Multi-byte string functionality still needs to be added... :(");
-			break;
-
-			case 'int':
-			case 'integer':
-			case 'long':
-			case 'real':
-				if (!isNum($data, true)) {throw new Bdlm_Exception('Invalid data type \''.gettype($data).'\', expecting \'int\'.');}
-				if ((int) $data < $this->_min || (int) $data > $this->_max) {
-					throw new Bdlm_Exception("Data ($data) out of range ($this->_min to $this->_max)");
-				}
-			break;
-
-			case 'array':
-				if (!is_array($data)) {throw new Bdlm_Exception('Invalid data type \''.gettype($data).'\', expecting \'array\'.');}
-				if (count($data) < $this->_min || count($data) > $this->_max) {
-					throw new Bdlm_Exception("Data (".count($data)." array elements) out of range ($this->_min to $this->_max array elements)");
-				}
-			break;
-
-			case 'bool':
-				if (!is_bool($data)) {throw new Bdlm_Exception('Invalid data type \''.gettype($data).'\', expecting \'bool\'.');}
-			break;
-
-			case 'object':
-				if (!is_object($data)) {throw new Bdlm_Exception('Invalid data type \''.gettype($data).'\', expecting \'object\'.');}
-			break;
-
-			/**
-			 * @todo Perfect opportunity to try out the Zend_Date classes.... make sure bcmath is installed.
-			 */
-			case 'date':
-			break;
-
-			case 'resource':
-				if (!is_resource($data)) {throw new Bdlm_Exception('Invalid data type \''.gettype($data).'\', expecting \'resource\'.');}
-			break;
-
-			case 'float':
-			case 'double':
-				if (!isNum($data)) {throw new Bdlm_Exception('Invalid data type \''.gettype($data).'\', expecting \'float\'.');}
-				if (floatval($data) < floatval($this->_min) || floatval($data) > floatval($this->_max)) {
-					throw new Bdlm_Exception("Data (".floatval($data).") out of range ($this->_min to $this->_max)");
-				}
-			break;
-
-			case 'file':
-				if (!is_file($data)) {throw new Bdlm_Exception('Invalid file path \''.$data.'\', file not found');}
-			break;
-
-			case 'scalar':
-				if (!is_scalar($data)) {throw new Bdlm_Exception('Invalid data type \''.gettype($data).'\', expecting \'scalar\'.');}
-			break;
-
-			case 'mixed':
-			case null:
-				// 'mixed' type data is not validated, exists for flexibility.  Probably shouldn't be used, if $this->_type is null then data isn't validated anyway
-			break;
-
-
-
-			default:
-
-				//
-				// Make sure we should be bothering
-				//
-				if (!is_null($this->_type)) {
-
-					//
-					// Assume $this->_type is a class name.  This does _not_ take inheritance into account
-					// @todo Account for inheritance
-					//
-					if (is_object($data)) {
-						$class_name = get_class($data);
-						if ($class_name != $this->_type) {
-							throw new Bdlm_Exception('Invalid object type ('.$class_name.'), '.$this->_type.' required.');
-						}
-
-					//
-					// Bad type got in here somehow, revisit isValidType();
-					//
-					} else {
-						throw new Bdlm_Exception('Unknown or invalid data type \''.$this->_type.'\'. Use \'mixed\' if this is intentional.');
-					}
-				}
-			break;
-		}
-
-		//
-		// Child objects should re-implement the return value however appropriate
-		//
-		return $this;
-	}
-
-	/**
 	 * Find out if $max is valid
-	 * @param string $max The max value to check
+	 * @param int|float $max The max value to check
 	 * @return bool
 	 */
 	public function isValidMax($max) {
 		$ret_val = true;
 		if (
-			!isNum($max, true)
+			!isNum($max)
 			|| (
 				!is_null($this->min())
-				&& (int) $max < $this->min()
+				&& (float) $max < $this->min()
 			)
 		) {
 			$ret_val = false;
@@ -598,16 +596,16 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 
 	/**
 	 * Find out if $min is valid
-	 * @param string $min The min value to check
+	 * @param int|float $min The min value to check
 	 * @return bool
 	 */
 	public function isValidMin($min) {
 		$ret_val = true;
 		if (
-			!isNum($min, true)
+			!isNum($min)
 			|| (
 				!is_null($this->max())
-				&& (int) $min > $this->max()
+				&& (float) $min > $this->max()
 			)
 		) {
 			$ret_val = false;
@@ -623,8 +621,9 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 	public function isValidMode($mode) {
 		$ret_val = false;
 		switch (trim($mode)) {
-			case 'list':
-			case 'singleton':
+			case 'list':      // Arbitrary list of data
+			case 'fixed':     // List of data with defined locations (keys)
+			case 'singleton': // Single value
 				$ret_val = true;
 			break;
 
@@ -652,30 +651,26 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 	 * @throws Bdlm_Exception If $type can't be a string or is empty
 	 */
 	public function isValidType($type) {
-
 		$type = (string) $type;
-		if ('' === $type) {
-			throw new Bdlm_Exception("'type' must be a string and must not be empty");
-		}
-
 		$ret_val = false;
 		switch ($type) {
-			case 'string':
-			case 'mbstring':
+			case 'array':
+			case 'bool':
+			case 'boolean':
+			case 'date':
+			case 'double':
+			case 'file':
+			case 'float':
 			case 'int':
 			case 'integer':
 			case 'long':
-			case 'real':
-			case 'array':
-			case 'bool':
-			case 'object':
-			case 'date':
-			case 'resource':
-			case 'float':
-			case 'double':
-			case 'file':
-			case 'scalar':
+			case 'mbstring':
 			case 'mixed':
+			case 'object':
+			case 'real':
+			case 'resource':
+			case 'scalar':
+			case 'string':
 				$ret_val = true;
 			break;
 
@@ -683,56 +678,234 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 			// Assume it's a class name
 			//
 			default:
-				$ret_val = class_exists($type);
-				if (!$ret_val) {
-					$ret_val = bdlm_autoload($type);
+				try {
+					$ret_val = class_exists($type, true);
+				} catch (Bdlm_Exception $e) {
+					if (
+						0 !== $e->getCode()
+						|| false === strpos(strtolower($e->getMessage()), 'invalid class name')
+					) {
+						throw new Bdlm_Exception("{$e->getCode()}: {$e->getMessage()}");
+					}
 				}
 			break;
 		}
 		return $ret_val;
 	}
 
+	/**
+	 * Validate data aginst this objects's _type, _max and _min values.
+	 * @param mixed $data
+	 * @return Bdlm_Object $this
+	 * @throws Bdlm_Exception If validation fails for any reason
+	 * @todo This has full unit-test coverage but it still needs a lot of testing
+	 */
+	public function validateData($data) {
+		$type = $this->type();
+		switch ($type) {
+			case 'array':
+				if (!is_array($data)) {throw new Bdlm_Exception('Invalid data type \''.gettype($data).'\', expecting \'array\'.', Bdlm_Object::INVALID_TYPE_ARRAY);}
+				$size = count($data);
+				if (
+					(!is_null($this->max()) && $size > (int) $this->max())
+					|| (!is_null($this->min()) && $size < (int) $this->min())
+				) {
+					throw new Bdlm_Exception("Data ($size array elements) out of range ({$this->min()} to {$this->max()} array elements)", Bdlm_Object::INVALID_DATA_SIZE);
+				}
+			break;
+
+			case 'bool':
+			case 'boolean':
+				if (!is_bool($data)) {throw new Bdlm_Exception('Invalid data type \''.gettype($data).'\', expecting \'bool\'.', Bdlm_Object::INVALID_TYPE_BOOLEAN);}
+			break;
+
+			case 'date':
+				if (isNum($data)) {
+					$size = (float) $data;
+					if (0 > $size) {
+						throw new Bdlm_Exception("Invalid date value, $data seconds", Bdlm_Object::INVALID_TYPE_DATE);
+					}
+				} elseif (is_string($data)) {
+					$size = strtotime($data);
+					if (false === $size) {
+						throw new Bdlm_Exception("Invalid date string $data", Bdlm_Object::INVALID_TYPE_DATE);
+					}
+				} else {
+					throw new Bdlm_Exception("Invalid date string $data", Bdlm_Object::INVALID_TYPE_DATE);
+				}
+				if (
+					(!is_null($this->max()) && $size > (int) $this->max())
+					|| (!is_null($this->min()) && $size < (int) $this->min())
+				) {
+					throw new Bdlm_Exception("Data ($size) out of range ({$this->min()} to {$this->max()} epoch seconds)", Bdlm_Object::INVALID_DATA_SIZE);
+				}
+			break;
+
+			case 'double':
+			case 'float':
+				if (!isNum($data)) {throw new Bdlm_Exception('Invalid data type \''.gettype($data).'\', expecting \'float\'.', Bdlm_Object::INVALID_TYPE_DOUBLE);}
+				$size = (float) $data;
+				if (
+					(!is_null($this->max()) && $size > (float) $this->max())
+					|| (!is_null($this->min()) && $size < (float) $this->min())
+				) {
+					throw new Bdlm_Exception("Data ({$size}) out of range ({$this->min()} to {$this->max()})", Bdlm_Object::INVALID_DATA_SIZE);
+				}
+			break;
+
+			case 'file':
+				if (!is_string($data)) {
+					throw new Bdlm_Exception("Data must be a valid local filesystem path, ".gettype($data)." given.", Bdlm_Object::INVALID_TYPE_FILE);
+				}
+				if (!is_file($data)) {throw new Bdlm_Exception('Invalid file path \''.$data.'\', file not found', Bdlm_Object::INVALID_TYPE_FILE);}
+				$size = filesize($data);
+				if (
+					(!is_null($this->max()) && $size > (int) $this->max())
+					|| (!is_null($this->min()) && $size < (int) $this->min())
+				) {
+					$size = number_format($size, 0);
+					throw new Bdlm_Exception("Data ({$data} is {$size} bytes) out of range ({$this->min()} to {$this->max()})", Bdlm_Object::INVALID_DATA_SIZE);
+				}
+			break;
+
+			case 'int':
+			case 'integer':
+			case 'long':
+			case 'real':
+				if (!isNum($data, true)) {
+					throw new Bdlm_Exception('Invalid data type \''.gettype($data).'\', expecting \'int\'.', Bdlm_Object::INVALID_TYPE_INTEGER);
+				}
+				$size = (int) $data;
+				if (
+					(!is_null($this->max()) && $size > (int) $this->max())
+					|| (!is_null($this->min()) && $size < (int) $this->min())
+				) {
+					throw new Bdlm_Exception("Data ({$size}) out of range ({$this->min()} to {$this->max()})", Bdlm_Object::INVALID_DATA_SIZE);
+				}
+			break;
+
+			case 'mbstring':
+				throw new Bdlm_Exception("Multi-byte string validation still needs to be added... :(", Bdlm_Object::INVALID_TYPE_MBSTRING);
+			break;
+
+			case 'mixed':
+			case null:
+				// 'mixed' type data is not validated, exists for flexibility.  Probably shouldn't be used, if $this->_type is null then data isn't validated anyway
+			break;
+
+			case 'object':
+				if (!is_object($data)) {throw new Bdlm_Exception('Invalid data type \''.gettype($data).'\', expecting \'object\'.', Bdlm_Object::INVALID_TYPE_OBJECT);}
+			break;
+
+			case 'resource':
+				if (!is_resource($data)) {throw new Bdlm_Exception('Invalid data type \''.gettype($data).'\', expecting \'resource\'.', Bdlm_Object::INVALID_TYPE_RESOURCE);}
+			break;
+
+			case 'scalar':
+				if (!is_scalar($data)) {throw new Bdlm_Exception('Invalid data type \''.gettype($data).'\', expecting \'scalar\'.', Bdlm_Object::INVALID_TYPE_SCALAR);}
+				if (is_bool($data)) {
+					$size = null;
+				} elseif (is_integer($data)) {
+					$size = $data;
+					$max = (int) $this->max();
+					$min = (int) $this->min();
+				} elseif (is_float($data)) {
+					$size = $data;
+					$max = (float) $this->max();
+					$min = (float) $this->min();
+				} elseif (is_string($data)) {
+					$size = strlen($data);
+					$max = (int) $this->max();
+					$min = (int) $this->min();
+				}
+				if (
+					(!is_null($this->max()) && $size > $max)
+					|| (!is_null($this->min()) && $size < $min)
+				) {
+					throw new Bdlm_Exception("Data ({$size}) out of range ({$this->min()} to {$this->max()}), data type: ".gettype($data), Bdlm_Object::INVALID_DATA_SIZE);
+				}
+			break;
+
+			case 'string':
+				if (!is_string($data)) {
+					throw new Bdlm_Exception('Invalid data type \''.gettype($data).'\', expecting \'string\'.', Bdlm_Object::INVALID_TYPE_STRING);
+				}
+				$size = strlen($data);
+				if (
+					(!is_null($this->min()) && $size < $this->min())
+					|| (!is_null($this->max()) && $size > $this->max())
+				) {
+					throw new Bdlm_Exception("Data ({$size} characters) out of range ({$this->min()} to {$this->max()})", Bdlm_Object::INVALID_DATA_SIZE);
+				}
+			break;
+
+			default:
+
+				//
+				// Assume $this->type() is a class name.  This _should_ take inheritance into account
+				// @todo Test that inheritance is correctly accounted for
+				//
+				if (is_object($data)) {
+					if (!$data instanceof $type) {
+						throw new Bdlm_Exception('Invalid object type \''.get_class($data).'\', '.$type.' required.', Bdlm_Object::INVALID_TYPE_CLASS);
+					}
+
+				//
+				// Bad type got in here somehow, revisit isValidType();
+				//
+				} else {
+					throw new Bdlm_Exception('Invalid data type \''.gettype($data).'\', must be of type \''.$type.'\'', Bdlm_Object::INVALID_TYPE_UNKNOWN);
+				}
+			break;
+		}
+
+		//
+		// Child objects should re-implement the return value however appropriate
+		//
+		return $this;
+	}
+
 #######################################################################################
 #	Magic Implementations
+#	The data access API (set(), get(), etc.) must be used here to
+#	preserve consistent behavior with child classes that re-implement
+#	those methods.  These methods are final to enforce api consistency
 #######################################################################################
 
 	/**
 	 * @return mixed
 	 */
-	public function __get($var) {
+	final public function __get($var) {
 		return $this->get($var);
 	}
 
 	/**
 	 * @return bool
 	 */
-	public function __isset($var) {
+	final public function __isset($var) {
 		return $this->has($var);
 	}
 
 	/**
 	 * @return void
 	 */
-	public function __set($var, $val) {
+	final public function __set($var, $val) {
 		$this->set($var, $val);
 	}
 
 	/**
+	 * Alias the standard implementation
 	 * @return string
 	 * @todo should this return a delimited file or something?
 	 */
-	public function __toString() {
-		$ret_val = 'File: '.__FILE__."\nClass: ".__CLASS__."\nMethod: ".__METHOD__."()\nLine: ".__LINE__."\nMessage: Not Yet Implemented.\n\nCurrent Data:\n";
-		foreach ($this as $k => $v) {
-			$ret_val .= "\t$k:\t$v\n";
-		}
-		return $ret_val;
+	final public function __toString() {
+		return $this->toString();
 	}
 
 	/**
 	 * @return void
 	 */
-	public function __unset($var) {
+	final public function __unset($var) {
 		$this->delete($var);
 	}
 
@@ -820,7 +993,8 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 
 #######################################################################################
 #	ArrayAccess Implementations
-#	Do not use the set() / get() API as those methods may be overriden in child classes
+#	Do not use the data access API (set(), get(), etc.) here as those
+#	methods may be overriden in child classes
 #######################################################################################
 
 	/**
@@ -838,7 +1012,7 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 	 * @return mixed
 	 */
 	public function offsetGet($offset) {
-		return $this->_data[$offset] ? $this->_data[$offset] : null;
+		return (isset($this->_data[$offset]) ? $this->_data[$offset] : null);
 	}
 
 	/**
@@ -880,7 +1054,15 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 	 * @return string The serialized _data array
 	 */
 	public function serialize() {
-		return serialize($this->getData());
+		return serialize(array(
+			'_is_static' => $this->isStatic(),
+			'_max' => $this->max(),
+			'_min' => $this->min(),
+			'_mode' => $this->mode(),
+			'_name' => $this->name(),
+			'_type' => $this->type(),
+			'_data' => $this->getData(),
+		));
 	}
 
 	/**
@@ -889,7 +1071,28 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 	 * @return void
 	 */
 	public function unserialize($data) {
-		$this->setData(unserialize($data));
+		$data = unserialize($data);
+		$this->isStatic($data['_is_static']);
+		$this->max($data['_max']);
+		$this->min($data['_min']);
+		$this->mode($data['_mode']);
+		$this->name($data['_name']);
+		$this->type($data['_type']);
+		$this->setData($data['_data']);
+	}
+
+#######################################################################################
+#	System Statistics
+#######################################################################################
+
+	public static function stats($object) {
+		$reflection = new ReflectionClass($object);
+		if (!is_array($GLOBALS['__bdlm_stats__']['class_stats'][$reflection->getName()])) {
+			$GLOBALS['__bdlm_stats__']['class_stats'][$reflection->getName()] = array(
+				'init' => 0,
+			);
+		}
+		$GLOBALS['__bdlm_stats__']['class_stats'][$reflection->getName()]['init']++;
 	}
 
 }

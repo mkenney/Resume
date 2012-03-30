@@ -5,11 +5,18 @@
  * @author Michael Kenney <mkenney@webbedlam.com>
  * @package Bedlam_CORE
  * @subpackage Db
+ * @version $Id$
  */
 
 if (file_exists(APP_CONF_DIR.'db.php')) {
+	/**
+	 * App-specific database configs
+	 */
 	require_once(APP_CONF_DIR.'db.php');
 }
+/**
+ * Sustem database configs
+ */
 require_once(CONF_DIR.'db.php');
 
 /**
@@ -56,11 +63,12 @@ class Bdlm_Db extends Bdlm_Object implements Bdlm_Db_Interface {
 	 * @param string $server The server hostname
 	 * @param string $user The database user name
 	 * @param string $password The database user's password
-	 * @@param string $adapter Not used, placeholder for future PDO
+	 * @param string $adapter Not used, placeholder for future PDO
 	 * @return void
 	 */
 	public function __construct($database = null, $server = null, $user = null, $password = null, $adapter = null) {
 		parent::__construct();
+		$this->type('string'); // only stores connection information in the datastore
 
 		if (is_null($server))   {$server = DB_SERVER;}
 		if (is_null($user))     {$user = DB_USERNAME;}
@@ -68,6 +76,9 @@ class Bdlm_Db extends Bdlm_Object implements Bdlm_Db_Interface {
 		if (is_null($database)) {$database = DB_DATABASE;}
 		if (is_null($adapter))  {$adapter = DB_ADAPTER;}
 
+		if (defined('DB_PERSISTENT') && true === DB_PERSISTENT) {
+			$server = "p:{$server}";
+		}
 
 		$this->set('server', $server);
 		$this->set('username', $user);
@@ -77,7 +88,6 @@ class Bdlm_Db extends Bdlm_Object implements Bdlm_Db_Interface {
 		$this->connect(true);
 
 		$this->name($database);
-		$this->type('Bdlm_Db');
 
 		// Lock it down
 		$this->isStatic(true);
@@ -111,7 +121,7 @@ class Bdlm_Db extends Bdlm_Object implements Bdlm_Db_Interface {
 
 			if ($this->connection()->connect_error) {
 				if ($this->_log) {
-					event('error', "Unable to open database '{$this['database']}' on host '{$this['server']}' as user '{$this['username']}'! (".$this->connection()->connect_errno.": ".$this->connection()->connect_error.")");
+					event('error', "Unable to open database '{$this['database']}' on host '{$this['server']}' as user '{$this['username']}'! ({$this->errno()}: {$this->error()})");
 				}
 			}
 		}
@@ -142,6 +152,14 @@ class Bdlm_Db extends Bdlm_Object implements Bdlm_Db_Interface {
 	 */
 	public function disconnect() {
 		return $this->close();
+	}
+
+	/**
+	 * Return the error code for the most recent function call
+	 * @return int
+	 */
+	public function errno() {
+		return $this->connection()->errno;
 	}
 
 	/**
@@ -187,7 +205,7 @@ class Bdlm_Db extends Bdlm_Object implements Bdlm_Db_Interface {
 	 */
 	public function listTables($prefix) {
 		$result = $this->query(new Bdlm_Db_Statement("SHOW TABLES LIKE ':prefix%'", array('prefix' => $prefix), $this));
-		return $result->asList();
+		return $result->toList();
 	}
 
 	/**

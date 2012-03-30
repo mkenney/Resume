@@ -6,6 +6,7 @@
  * @author Michael Kenney <mkenney@webbedlam.com>
  * @package Bedlam_CORE
  * @subpackage Db
+ * @version $Id$
  */
 
 /**
@@ -27,6 +28,7 @@ class Bdlm_Db_Statement extends Bdlm_Object {
 	 * @return void
 	 */
 	public function __construct($query = null, $data = array(), Bdlm_Db $db = null) {
+		parent::__construct();
 		$this->query($query);
 		$this->data($data);
 		$this->db($db);
@@ -95,9 +97,10 @@ class Bdlm_Db_Statement extends Bdlm_Object {
 
 	/**
 	 * Get the full query with data
+	 * Also defines __toString() output
 	 * @return string SQL query
 	 */
-	public function __toString() {
+	public function toString() {
 		if ('' === trim($this->get("query"))) {
 			throw new Bdlm_Exception("No SQL query given");
 		}
@@ -105,6 +108,7 @@ class Bdlm_Db_Statement extends Bdlm_Object {
 		// Don't modify the original query
 		$query = $this->get("query");
 
+		$_query_data = $this->get("data");
 		foreach ($this->get("data") as $k => $v) {
 			$quote_char = "";
 
