@@ -9,12 +9,18 @@
  * @author Michael Kenney <mkenney@webbedlam.com>
  * @package Bedlam_CORE
  * @subpackage Cookie
- * @version 0.24
+ * @version $Id$
  */
 
 if (file_exists(APP_CONF_DIR.'cookie.php')) {
+	/**
+	 * App-specific cookie settings
+	 */
 	require_once(APP_CONF_DIR.'cookie.php');
 }
+/**
+ * System cookie settings
+ */
 require_once(CONF_DIR.'cookie.php');
 
 /**
@@ -25,7 +31,7 @@ require_once(CONF_DIR.'cookie.php');
  * @author Michael Kenney <mkenney@webbedlam.com>
  * @package Bedlam_CORE
  * @subpackage Cookie
- * @version v0.04b
+ * @version 1.0
  */
 class Bdlm_Cookie extends Bdlm_Object implements Bdlm_Cookie_Interface {
 
@@ -170,7 +176,8 @@ class Bdlm_Cookie extends Bdlm_Object implements Bdlm_Cookie_Interface {
 		// Don't just loop through $this or the each() call gets off
 		// as you delete keys and you can potentially skip some.
 		//
-		foreach (array_keys($this->toArray()) as $var) {
+		$array = $this->toArray();
+		while (list($_k, $var) = each($array)) {
 			$this->delete($var);
 		}
 		return parent::reset();
