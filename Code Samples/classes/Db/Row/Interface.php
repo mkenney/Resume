@@ -17,7 +17,8 @@
  * @subpackage Db
  * @version 0.2
  */
-interface Bdlm_Db_Row_Interface {
+interface Bdlm_Db_Row_Interface extends Bdlm_Object_Interface {
+
 	/**
 	 * Save this row to the database.
 	 * If it's an existing row (already loaded) then saving will overwrite the data.

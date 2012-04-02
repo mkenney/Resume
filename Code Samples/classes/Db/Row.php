@@ -87,7 +87,7 @@ class Bdlm_Db_Row extends Bdlm_Object implements Bdlm_Db_Row_Interface {
 	 * @param string|array $key The name of the primary key; array for multiple.
 	 * @param bool $load If true, attempt to load the row from the database.
 	 * @return Bdlm_Db_Row
-	 * #todo Finish managing $key decisions.  Just use id()?
+	 * @todo Finish managing $key decisions.  Just use id()?
 	 */
 	public function __construct(Bdlm_Db_Table $table, $key = null, $load = true) {
 		parent::__construct(); // Construct superclass.
@@ -572,5 +572,4 @@ class Bdlm_Db_Row extends Bdlm_Object implements Bdlm_Db_Row_Interface {
 		}
 		return $this->_table;
 	}
-
 }

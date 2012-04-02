@@ -144,9 +144,9 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 	 */
 	public function __construct($data = null) {
 		if (!is_null($data)) {
-			$this->setData($data);
+			$this->setData((array) $data);
 		}
-		if (defined('DEBUG') && DEBUG === true) {
+		if (defined('DEBUG') && true === DEBUG) {
 			Bdlm_Object::stats($this);
 		}
 	}
@@ -450,21 +450,19 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 			'fixed' === $this->mode()
 			&& count(array_diff(array_keys($this->getData(), array_keys($data)))) > 0
 		) {
-			$keys = array_keys($this->getData());
-			while (list($key) = each($keys)) {
+			foreach ($this->getData() as $key => $value) {
 				if (!array_key_exists($key, $data)) {
 					throw new Bdlm_Exception("This is a fixed list and an existing key ('{$var}') is not present in the new list.");
 				}
 			}
-			$keys = array_keys($data);
-			while (list($key) = each($keys)) {
+			foreach ($data as $key => $value) {
 				if (!array_key_exists($key, $this->getData())) {
 					throw new Bdlm_Exception("This is a fixed list and a specified key ('{$var}') does not exist.");
 				}
 			}
 
 		}
-		while (list($k, $val) = each($data)) {
+		foreach ($data as $val) {
 			// throws Bdlm_Exception if data is not of type $this->type()
 			$this->validateData($val);
 		}
@@ -484,7 +482,7 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 		} elseif (!is_array($array)) {
 			$array = (array) $this->_data;
 		}
-		while (list($k, $v) = each($array)) {
+		foreach ($array as $k => $v) {
 			if (
 				is_array($v)
 				|| $v instanceof Bdlm_Object
@@ -536,7 +534,7 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 		} elseif (!is_array($array)) {
 			$array = $this->toArray();
 		}
-		while (list($k, $v) = each($array)) {
+		foreach ($array as $k => $v) {
 			$xml .= "<$k>";
 			if (
 				is_array($v)
@@ -565,8 +563,7 @@ class Bdlm_Object implements Bdlm_Object_Interface {
 				throw new Bdlm_Exception("Invalid type '$type'");
 			}
 			$this->_type = $type;
-			$data = $this->getData();
-			while (list($k, $val) = each($data)) {
+			foreach ($this->getData() as $val) {
 				// throws Bdlm_Exception if data is not of type $this->type()
 				$this->validateData($val);
 			}

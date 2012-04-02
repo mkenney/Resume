@@ -1,9 +1,6 @@
 <?php
 /**
  * Cookie management object
- * core/classes/class.Cookie.php
- *
- * Changelog:
  *
  * @copyright 2005 - present Michael Kenney <mkenney@webbedlam.com>
  * @author Michael Kenney <mkenney@webbedlam.com>
@@ -71,7 +68,7 @@ class Bdlm_Cookie extends Bdlm_Object implements Bdlm_Cookie_Interface {
 	 * @param int $timeout
 	 * @param string $path
 	 * @param string $domain
-	 * @return void
+	 * @return Bdlm_Cookie
 	 */
 	public function __construct($name = '', $timeout = 86400, $path = '/', $domain = null) {
 
@@ -99,35 +96,35 @@ class Bdlm_Cookie extends Bdlm_Object implements Bdlm_Cookie_Interface {
 	/**
 	 * Delete a cookie value
 	 * @param string $var The name of the value to be deleted
-	 * @return void
+	 * @return Bdlm_Object
 	 * @throws Bdlm_Exception
 	 */
 	public function delete($var) {
 
-			//
-			// Delete the specified value
-			//
-			if (
-				!setcookie(
-					$this->name()."[$var]"
-					, false
-					, time() - 86400
-					, $this->path()
-					, $this->domain()
-					, $this->secure()
-				)
-			) {
-
-				//
-				// Print error
-				//
-				throw new Bdlm_Exception("Could not delete cookie ($this->name[$var])");
-			}
+		//
+		// Delete the specified value
+		//
+		if (
+			!setcookie(
+				$this->name()."[$var]"
+				, false
+				, time() - 86400
+				, $this->path()
+				, $this->domain()
+				, $this->secure()
+			)
+		) {
 
 			//
-			// Update local value
+			// Print error
 			//
-			return parent::delete($var);
+			throw new Bdlm_Exception("Could not delete cookie ($this->name[$var])");
+		}
+
+		//
+		// Update local value
+		//
+		return parent::delete($var);
 	}
 
 	/**
@@ -168,23 +165,24 @@ class Bdlm_Cookie extends Bdlm_Object implements Bdlm_Cookie_Interface {
 
 	/**
 	 * Delete all cookies accessable from this cookie object
+	 * @return Bdlm_Object $this
 	 */
 	final public function reset() {
 
 		//
 		// Loop through cookie values deleting each one
-		// Don't just loop through $this or the each() call gets off
+		// Don't just loop through $this or the each() call gets offset
 		// as you delete keys and you can potentially skip some.
 		//
 		$array = $this->toArray();
-		while (list($_k, $var) = each($array)) {
+		foreach ($this->toArray() as $var) {
 			$this->delete($var);
 		}
 		return parent::reset();
 	}
 
 	/**
-	 * secure get/set wrapper
+	 * Secure get/set wrapper
 	 * @param bool $secure
 	 * @return bool
 	 */
@@ -205,14 +203,10 @@ class Bdlm_Cookie extends Bdlm_Object implements Bdlm_Cookie_Interface {
 	 */
 	public function set($var, $val, $timeout = null) {
 
-		//
-		// Return value
-		//
+		// Init return value
 		$ret_val = false;
 
-		//
 		// Set the cookie timeout.  If the timeout value is 0, use a session cookie.
-		//
 		if (!is_null($timeout)) {
 			$timeout = ((int) $timeout > 0
 				? time() + (int) $timeout
@@ -224,8 +218,6 @@ class Bdlm_Cookie extends Bdlm_Object implements Bdlm_Cookie_Interface {
 				: 0
 			);
 		}
-
-
 
 		//
 		// Set the cookie value
@@ -243,9 +235,7 @@ class Bdlm_Cookie extends Bdlm_Object implements Bdlm_Cookie_Interface {
 			)
 		) {
 
-			//
 			// Update local values
-			//
 			$ret_val = parent::set($var, $val);
 		}
 
@@ -262,9 +252,7 @@ class Bdlm_Cookie extends Bdlm_Object implements Bdlm_Cookie_Interface {
 
 			$timeout = (int) $timeout;
 
-			//
 			// Format the timestamp, (a value of 0 creates a session cookie)
-			//
 			if ($timeout > 0) {
 				$timeout += time();
 			}

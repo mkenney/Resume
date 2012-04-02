@@ -91,6 +91,7 @@ abstract class Bdlm_View implements Bdlm_View_Interface {
 
 	/**
 	 * Set/get the local Bdlm_Esapi instance
+	 * Bdlm_Esapi implements and extends the Owasp ESAPI - https://www.owasp.org/
 	 * @param Bdlm_Esapi $esapi
 	 * @return Bdlm_Esapi
 	 */
@@ -105,7 +106,9 @@ abstract class Bdlm_View implements Bdlm_View_Interface {
 	}
 
 	/**
-	 * Add elements custom elements to the page header (<script> tags, etc.);
+	 * Get/set the charset that should be used on this page
+	 * Unless otherwise specified, this charset is applied to CSS and JS render
+	 * calls.
 	 * @param string $charset the character set to use, default is UTF-8
 	 * @return string
 	 */
@@ -121,7 +124,7 @@ abstract class Bdlm_View implements Bdlm_View_Interface {
 	 *
 	 * The argument is provided just for consistency.  You wouldn't really do that,
 	 * you would just echo whatever you wanted in the template.  It does cache
-	 * the passed content.
+	 * the passed content, if any.
 	 *
 	 * @param string $content Set the content portion of the UI
 	 * @param boolean $print_outputProvided for API consistency
@@ -170,7 +173,7 @@ abstract class Bdlm_View implements Bdlm_View_Interface {
 			if (!is_array($elements)) {
 				self::$_html_head_elements[(string) $elements] = (string) $elements; // make it the key also to avoid duplication
 			} else {
-				while (list($k, $v) = each($elements)) {
+				foreach ($elements as $k => $v) {
 					self::$_html_head_elements[(string) $v] = (string) $v; // make it the key also to avoid duplication
 				}
 			}
@@ -406,7 +409,6 @@ CSS;
 			case '505': header('HTTP/1.1 505 HTTP Version Not Supported');      break;
 		}
 
-
         ob_start();
         require_once(APP_HTML_DIR."errdocs/{$status_code}.php");
         $output = ob_get_clean();
@@ -489,7 +491,7 @@ JS;
 	}
 
 	/**
-	 * Include a widget from /html/widgets/
+	 * Include a widget from html/widgets/
 	 * @param string $widget The name of the widget to load
 	 * @todo Don't call them widgets
 	 */
