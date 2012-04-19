@@ -363,7 +363,7 @@ class Bdlm_Db_Row extends Bdlm_Object implements Bdlm_Db_Row_Interface {
 				$ret_val = true;
 			}
 		} else {
-			foreach ($this->getData as $k => $v) {
+			foreach ($this->getData() as $k => $v) {
 				if (
 					!in_array(
 						$k
