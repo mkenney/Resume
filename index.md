@@ -11,7 +11,7 @@ Well-rounded, goal oriented, professional software developer with nearly twenty 
 
 ## Projects
 
-[GitHub](https://github.com/mkenney) | [Docker](https://hub.docker.com/u/mkenney/)
+[GitHub](https://github.com/mkenney) \| [Docker](https://hub.docker.com/u/mkenney/)
 
 * [Docker NPM](https://store.docker.com/community/images/mkenney/npm) (Docker)
 * [Chrome DevTools Protocol client in Golang](https://github.com/mkenney/go-chrome) (Golang)
