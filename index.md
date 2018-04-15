@@ -13,7 +13,7 @@ Well-rounded, goal oriented, professional software developer with nearly twenty 
 
 [GitHub](https://github.com/mkenney) • [Docker](https://hub.docker.com/u/mkenney/)
 
-* [Docker NPM](https://store.docker.com/community/images/mkenney/npm) (Docker)
-* [Chrome DevTools Protocol client in Golang](https://github.com/mkenney/go-chrome) (Golang)
-* [Tabular Data Manipulation API](https://github.com/mkenney/DatatableJs) (JavaScript)
-* [Kubernets Reverse Proxy](https://github.com/mkenney/k8s-proxy) (Golang)
+* [Docker NPM](http://mkenney.github.io/docker-npm/) (Docker)
+* [Chrome DevTools Protocol client in Golang](http://mkenney.github.io/go-chrome) (Golang)
+* [Tabular Data Manipulation API](http://mkenney.github.io/DatatableJs) (JavaScript)
+* [Kubernets Reverse Proxy](http://mkenney.github.io/k8s-proxy) (Golang)
